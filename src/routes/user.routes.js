@@ -9,7 +9,7 @@ const router=Router();
 router.route("/register").post(
     upload.fields([
         {
-            name:"avate",
+            name:"avatar",
             maxCount:1
         },{
             name:"coverImage",
