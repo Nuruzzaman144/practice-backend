@@ -25,7 +25,7 @@ const userSchema=new mongoose.Schema(
             type:String,
             required:true,
            
-            index:true,
+            index:true, //searching er jonno 
             trim:true,
           
         },
@@ -60,15 +60,15 @@ const userSchema=new mongoose.Schema(
 
     },{timestamps:true}
 )
-userSchema.pre("save", async function (next){
-    if(!this.isModified("password")) return next();  // ✅ fix
+userSchema.pre("save", async function (){
+    if(!this.isModified("password")) return ;  // ✅ fix
 
    
     this.password = await bcrypt.hash(this.password, 10)
-    next()
+   
 })
 
-userSchema.methods.isPassword=async function(password){
+userSchema.methods.isPasswordCorrect=async function(password){
     return await bcrypt.compare(password ,this.password);
 }
 userSchema.methods.generateAccessToken=function(){
@@ -80,7 +80,7 @@ userSchema.methods.generateAccessToken=function(){
             fullName:this.fullName,
 
         },
-        process.env.ACCESS_TOKEN_SERCRET,
+        process.env.ACCESS_TOKEN_SECRET,
         {
             expiresIn:process.env.ACCESS_TOKEN_EXPIRY
         }
