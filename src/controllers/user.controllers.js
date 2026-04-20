@@ -26,8 +26,10 @@ const generateAccessAndRefreshTokens=async(userId)=>{
 
     return {accessToken,refreshToken}
     
-  } catch (error) {500,"Something went wrong while generate access and refresh token"
-    throw new ApiError()
+  } catch (error) {
+    
+     throw new ApiError(500,"Something went wrong while generate access and refresh token")
+   
     
   }
 };
@@ -365,6 +367,131 @@ return res
 })
 
 
+const getUserChannelProfile=asyncHandler(async(req,res)=>{
+  const {username}=req.params
+
+  if(!username){
+    throw new ApiError(400,"user name is missing")
+  }
+    const channel= await User.aggregate([
+      {
+        $match:{
+          username:username?.toLowerCase()
+        }
+        
+      },
+      {
+        $lookup:{
+          from:"subscription", //collection 
+          localField:"_id",  //id maddome
+          foreignField:"channel",
+          as:"subscribers"
+        }
+      },
+      {
+        $lookup:{
+          from:"subscription",
+          localField:"_id",
+          foreignField:"subscriber",
+          as:"subscribedTo"
+        }
+      },
+      {
+        $addFields:{
+         subscriberCount:{
+          $size:"$subscribers" //as:"subscribers"
+         },
+         channelSubscribedToCount:{
+          $size:"$subscribedTo" //  as:"subscribedTo"
+          },
+          isSubscribed:{
+            $cond:{
+              if:{$in:[req.user?._id ,"$subscribers.subscriber"]},//condition
+              then:true,
+              else:false
+            }
+          }
+        }
+      },
+      {
+        $project:{
+          fullName:1,
+          username:1,
+          subscriberCount:1,
+          channelSubscribedToCount:1,
+          isSubscribed:1,
+          avatar:1,
+          coverImage:1,
+          email:1
+
+
+
+        }
+      }
+    ])
+    console.log(channel)
+
+    if(!channel?.length){
+      throw new ApiError(404,"channel does not exist ")
+    }
+    return res
+    .status(200)
+    .json(
+      new ApiResponse(200,channel[0],"User channel fetched successfully ")
+    )
+})
+
+const getWatchHistory=asyncHandler(async(req,res)=>{
+     
+   const user=await User.aggregate([
+      {
+        $match:{
+          _id:mongoose.Types.ObjectId(req.user._id)
+        }
+      },
+      {
+        $lookup:{
+          from:"videos",
+          localField:"watchHistory",
+          foreignField:"_id",
+          as:"watchHistory",
+          pipeline:[
+            {
+              $lookup:{
+                from:"users",
+                localField:"owner",
+                foreignField:"_id",
+                as:"owner",
+                pipeline:[
+                  {
+                    $project:{
+                      fullName:1,
+                      username:1,
+                      avatar:1
+                    }
+                  }
+                ]
+              }
+
+            },
+            {
+              $addFields:{
+                owner:{
+                  $first:"$owner",
+                }
+              }
+            }
+          ]
+        }
+      }
+   ])
+
+   return res
+   .status(200)
+   .json(new ApiResponse(200,user[0].watchHistory,"watch history fetch successfully"))
+})
+
+
 
 
 
@@ -382,6 +509,8 @@ export {
   getCurrentUser,
   updateAccountDetails,
   updateUserAvatar,
-  updateUserCoverImage
+  updateUserCoverImage,
+  getUserChannelProfile,
+  getWatchHistory
 
 }

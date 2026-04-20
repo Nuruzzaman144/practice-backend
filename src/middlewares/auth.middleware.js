@@ -19,7 +19,7 @@ const verifyJWT=asyncHandler(async(req,res,next)=>{
                 //discussion about frontend
                 throw new ApiError(401,"Invalid access token")
             }
-            req.user=user;
+            req.user=user; //user._id set and get req.user._id
             next();
         } catch (error) {
             throw new ApiError(401,error?.message || "Invalid access token")
