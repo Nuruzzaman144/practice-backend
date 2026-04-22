@@ -181,7 +181,7 @@ const LoginUser=asyncHandler(async(req,res)=>{
 });
 const LogoutUser=asyncHandler(async(req,res,_)=>{
     await User.findByIdAndUpdate(
-    req.user._id,
+    req.user._id,//user er refresh token ke undefined kore dibe mane delete kore dibe req.user._id er acche auth theke 
     {
       $set:{
         refreshToken:undefined
@@ -316,6 +316,11 @@ const updateUserAvatar=asyncHandler(async(req,res)=>{
 
   }
 
+    // delete old avatar (only if exists)
+  if (req.user?.avatar?.public_id) {
+    await deleteFromCloudinary(req.user.avatar.public_id);
+  }
+
   const avatar=await uploadOnCloudinary(avatarLocalPath)
   if(!avatar.url){
      throw new ApiError(401,"error while uploading the avatar file ")
@@ -343,6 +348,10 @@ const updateUserCoverImage=asyncHandler(async(req,res)=>{
   if(!coverImageLoalPath){
     throw new ApiError(401,"Avatar file is missing")
 
+  }
+   // delete old avatar (only if exists)
+  if (req.user?.coverImage?.public_id) {
+    await deleteFromCloudinary(req.user.coverImage.public_id);
   }
 
   const coverImage=await uploadOnCloudinary(coverImageLoalPath)
@@ -383,8 +392,8 @@ const getUserChannelProfile=asyncHandler(async(req,res)=>{
       {
         $lookup:{
           from:"subscription", //collection 
-          localField:"_id",  //id maddome
-          foreignField:"channel",
+          localField:"_id",  // user field which is match and its depends to join ->id maddome
+          foreignField:"channel",//current collection er field jeita match korbe seta 
           as:"subscribers"
         }
       },
@@ -452,14 +461,14 @@ const getWatchHistory=asyncHandler(async(req,res)=>{
       {
         $lookup:{
           from:"videos",
-          localField:"watchHistory",
-          foreignField:"_id",
+          localField:"watchHistory",  //user er watch history te je video id gulo ache se gulo videos collection er _id field er sathe match korbe 
+          foreignField:"_id",  // 
           as:"watchHistory",
           pipeline:[
             {
               $lookup:{
                 from:"users",
-                localField:"owner",
+                localField:"owner", //video er owner field er value user collection er _id field er sathe match korbe 
                 foreignField:"_id",
                 as:"owner",
                 pipeline:[
