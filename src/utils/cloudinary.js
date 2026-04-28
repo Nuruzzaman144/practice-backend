@@ -29,6 +29,16 @@ const uploadOnCloudinary=async (localFilePath)=>{
    }
 
 }
+
+const deleteFromCloudinary=async(publicId)=>{
+    try {
+         await cloudinary.uploader.destroy(publicId,{
+            resource_type:"auto"
+         })
+    } catch (error) {
+        console.error("Error occurred while deleting from Cloudinary:", error);
+    }
+}
  
 
  //only for testing
@@ -39,4 +49,4 @@ const uploadOnCloudinary=async (localFilePath)=>{
 // );
 
 
-export {uploadOnCloudinary}
+export {uploadOnCloudinary,deleteFromCloudinary}
