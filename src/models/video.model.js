@@ -18,11 +18,18 @@ const VideoSchema=new mongoose.Schema(
         title:{
              type:String, 
             required:true,
+            index:true,
+            trim:true,
+            lowercase:true,
+
 
         },
         description:{
-             type:String, 
+            type:String, 
             required:true,
+            index:true,
+            trim:true,
+            lowercase:true,
 
         },
         duration:{
@@ -49,6 +56,10 @@ const VideoSchema=new mongoose.Schema(
     }
 )
 
+VideoSchema.index({
+    title: "text",
+    description: "text",
+});
 
 VideoSchema.plugin(mongooseAggregatePaginate)
 

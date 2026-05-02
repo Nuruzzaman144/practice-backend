@@ -6,12 +6,12 @@ const commentsSchema=new mongoose.Schema({
         required:true,
 
     },
-     videos:[
+     video:
             {
                 type:mongoose.Schema.Types.ObjectId,
             ref:"Video"
-            }
-        ],
+            },
+
         owner:{
             type:mongoose.Schema.Types.ObjectId,
             ref:"User",

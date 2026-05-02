@@ -12,6 +12,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
     const pageNum=Number(page)
     const limitNum=Number(limit)
+    
     const skip=(pageNum -1 )*limitNum;
 
     // filter 
@@ -20,7 +21,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
     //search means it query if query has i mean user if search
     if(query){
 
-        filter.title={$regex:query , $options:"i"}
+      filter.$text = { $search: query }
 
     }
     if(userId && isValidObjectId(userId)){
@@ -28,11 +29,16 @@ const getAllVideos = asyncHandler(async (req, res) => {
     }
 
 //sort 
-    const sortOrder=sortType === "asc" ? 1:-1;
+    let sortOptions = {};
+    if (query) {
+    sortOptions = { score: { $meta: "textScore" } };
+} else {
+    sortOptions = { [sortBy]: sortOrder };
+}
 
     //paginate 
     const videos=await Video.find(filter)
-     .sort({[sortBy]:sortOrder})
+     .sort(sortOptions)
      .skip(skip)
      .limit(limitNum)
      .populate("owner","fullName username email")
@@ -57,7 +63,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
     if(!title || !description){
         throw new ApiError(400,"Title and description are required")
     }
-   const videoPath = req.files?.video?.[0]?.path;
+   const videoPath = req.files?.videoFile?.[0]?.path;
 
     if(!videoPath){
         throw new ApiError(400,"Video file is required")
@@ -119,45 +125,107 @@ const getVideoById = asyncHandler(async (req, res) => {
 
 
 const updateVideo = asyncHandler(async (req, res) => {
-    const { videoId } = req.params
-     if(!isValidObjectId(videoId)){
-        throw new ApiError(400,"Invalid video ID")
-    }
-    //TODO: update video details like title, description, thumbnail
-    const {title,description}=req.body;
-   if(!title || !description){
-    throw new ApiError(400,"Title and description is required")
-   }
+//     const { videoId } = req.params
+//      if(!isValidObjectId(videoId)){
+//         throw new ApiError(400,"Invalid video ID")
+//     }
+//     //TODO: update video details like title, description, thumbnail
+//     const {title,description}=req.body;
+//    if(!title || !description){
+//     throw new ApiError(400,"Title and description is required")
+//    }
+// const thumbnailPath=req.files?.thumbnail?.[0].path;
+
+// if (!thumbnailPath) {
+//     throw new ApiError(400, "Thumbnail are required");
+// }
+// const video=await uploadOnCloudinary(videoPath)
+// if(!video?.url){
+//     throw new ApiError(404,"video not found")
+// }
     
-  const thumbnailPath=req.files?.thumbnail?.[0]?.path
-   if(!thumbnailPath){
-    throw new ApiError(400,"Please upload the thumbnail")
-   }
+//   const thumbnailPath=req.files?.thumbnail?.[0]?.path
+//    if(!thumbnailPath){
+//     throw new ApiError(400,"Please upload the thumbnail")
+//    }
 
-   const thumbnail=await uploadOnCloudinary(thumbnailPath);
+//    const thumbnail=await uploadOnCloudinary(thumbnailPath);
 
-   if(!thumbnail?.url){
-    throw new ApiError(500,"Thumbnail url could not found")
-   }
+//    if(!thumbnail?.url){
+//     throw new ApiError(500,"Thumbnail url could not found")
+//    }
    
 
   
 
-    const updatedVideo=await Video.findByIdAndUpdate(
-        videoId,
-        {
-            $set:{
-            title,
-            description,
-            thumbnail:thumbnail.url
+//     const updatedVideo=await Video.findByIdAndUpdate(
+//         videoId,
+//         {
+//             $set:{
+//             title,
+//             description,
+//             thumbnail:thumbnail.url,
+//             videoFile:video.url,
 
-        },
+//         },
         
-        },
-        {
-            new:true
-        },
-    )
+//         },
+//         {
+//             new:true
+//         },
+//     )
+
+const { videoId } = req.params;
+
+    if (!isValidObjectId(videoId)) {
+        throw new ApiError(400, "Invalid video ID");
+    }
+
+    const { title, description } = req.body;
+
+    const updateData = {};
+
+    // 📝 optional fields
+    if (title) updateData.title = title;
+    if (description) updateData.description = description;
+
+    // 🎥 video update (optional)
+    if (req.files?.videoFile) {
+        const videoPath = req.files.videoFile[0].path;
+
+        const uploadedVideo = await uploadOnCloudinary(videoPath);
+
+        if (!uploadedVideo?.url) {
+            throw new ApiError(500, "Video upload failed");
+        }
+
+        updateData.videoFile = uploadedVideo.url;
+    }
+
+    // 🖼️ thumbnail update (optional)
+    if (req.files?.thumbnail) {
+        const thumbnailPath = req.files.thumbnail[0].path;
+
+        const uploadedThumbnail = await uploadOnCloudinary(thumbnailPath);
+
+        if (!uploadedThumbnail?.url) {
+            throw new ApiError(500, "Thumbnail upload failed");
+        }
+
+        updateData.thumbnail = uploadedThumbnail.url;
+    }
+
+    // ❗ nothing to update
+    if (Object.keys(updateData).length === 0) {
+        throw new ApiError(400, "No data provided to update");
+    }
+
+    const updatedVideo = await Video.findByIdAndUpdate(
+        videoId,
+        { $set: updateData },
+        { new: true }
+    );
+
 return res.status(200).json(
   new ApiResponse(200, updatedVideo, "Video updated successfully")
 )
@@ -170,13 +238,7 @@ const deleteVideo = asyncHandler(async (req, res) => {
         throw new ApiError(400,"Invalid video ID")
     }
 
-    const video=await Video.findById(videoId);
-    if(!video){
-        throw new ApiError(404,"Video not found to db ")
-    }
-      if (video.owner.toString() !== req.user._id.toString()) {
-        throw new ApiError(403, "Not authorized to delete this video");
-    }
+   
    if(video.publicId){
     const deleted=await deleteFromCloudinary(video.publicId);
     if(!deleted){

@@ -107,7 +107,7 @@ const getLikedVideos = asyncHandler(async (req, res) => {
     const likedVideo=await Like.aggregate([
         {
             $match:{
-                likedBy:new mongoose.Types.ObjectId(req.user._id),
+                likedBy:mongoose.Types.ObjectId(req.user._id),
                 video:{ $exists: true }
             }
         },
