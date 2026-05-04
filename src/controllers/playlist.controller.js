@@ -1,11 +1,13 @@
-import { isValidElement } from "react"
-import { Playlist } from "../models/playlist.models"
-import { ApiError } from "../utils/ApiError"
-import { ApiResponse } from "../utils/ApiResponse"
+
+import { Playlist } from "../models/playlist.models.js"
+import { ApiError } from "../utils/ApiError.js"
+import { ApiResponse } from "../utils/ApiResponse.js"
 import { isValidObjectId } from "mongoose"
-import { User } from "../models/users.models"
-import { Playlist } from '../models/playlist.models';
-import { Video } from '../../../social-media/backend/src/models/video.models';
+import { User } from "../models/users.models.js"
+
+
+import { asyncHandler } from "../utils/asyncHandler.js"
+import { Video } from "../models/video.model.js"
 
 const createPlaylist = asyncHandler(async (req, res) => {
     const {name, description} = req.body
@@ -17,10 +19,11 @@ const createPlaylist = asyncHandler(async (req, res) => {
         name,
         owner:req.user._id
     })
-
-    if(!existing){
-        throw new ApiError(404,"Play list doesnot exist")
+    if(existing){
+        throw new ApiError(405,"Playlist already exist")
     }
+
+   
 
     const created=await Playlist.create({
         name,
@@ -28,6 +31,10 @@ const createPlaylist = asyncHandler(async (req, res) => {
         owner:req.user._id,
         video:[],
     })
+    if (!created){
+        throw new ApiError(500, "Failed to create playlist");
+    }
+
     return res.status(200)
     .json(
         new ApiResponse(200,
@@ -80,9 +87,7 @@ const getPlaylistById = asyncHandler(async (req, res) => {
    if(playlists.owner.toString() !==req.user._id.toString()){
     throw new ApiError(403,"You are not allowed to modified playlist ")
    }
-   if(playlists.videos.includes(videoId)){
-    throw new ApiError(403,"Video already exists in playlist")
-   }
+   
     //TODO: get user playlists
 
     const updatePlalists=await Playlist.findByIdAndUpdate(
@@ -117,11 +122,15 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
     if(!video){
         throw new ApiError(404,"Video nit exist in playlist ")
     }
-    if(playlists.videos.includes(videoId)){
-        throw new ApiError(403,"Video already been in playlist ")
+    
+    // if(playlists.videos.includes(videoId)){
+    //     throw new ApiError(403,"Video already been in playlist ")
 
-    }
-    playlists.videos.push(videoId);
+    // }
+    if (playlists.videos.some(v => v.toString() === videoId)) {
+    throw new ApiError(403, "Video already exists in playlist");
+}
+     await playlists.videos.push(videoId);
     await playlists.save()
 
     return res.status(200)
@@ -136,11 +145,19 @@ const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
      if(!isValidObjectId(playlistId) || !isValidObjectId(videoId)){
         throw new ApiError(400,"Invalid playlist and video id.Please add correct playlist id ")
     }
-
-    const updatePlayList =await Playlist.findByIdAndDelete(
+    console.log("playlistId:", playlistId);
+    const playlist=await Playlist.findById(playlistId)
+    if(!playlist){
+        throw new ApiError(404,"Playlist doesnot exist")
+    }
+      const video=await Video.findById(videoId)
+      if(!video){
+        throw new ApiError(404,"Video not found")
+      }
+    const updatePlayList =await Playlist.findByIdAndUpdate(
          playlistId,
           {
-             $pull:{video:videoId}  
+             $pull:{videos:videoId}  
          },
          {
             new:true
@@ -150,13 +167,14 @@ const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
         throw new ApiError(404,"Play list doesnot exist ")
     }
     return res.status(200)
-    .josn(new ApiResponse(200,updatePlayList,"Video remove from playlist "))
+    .json(new ApiResponse(200,updatePlayList,"Video remove from playlist "))
 })
 const deletePlaylist = asyncHandler(async (req, res) => {
      const {playlistId} = req.params
     if(!isValidObjectId(playlistId)){
         throw new ApiError(400,"Invalid playlist id ")
     }
+    
 
     const playlists=await Playlist.findById(playlistId)
     if(!playlists){
@@ -214,7 +232,8 @@ export {
     getPlaylistById,
     addVideoToPlaylist,
     deletePlaylist,
-    updatePlaylist
+    updatePlaylist,
+    removeVideoFromPlaylist
 
 
 
